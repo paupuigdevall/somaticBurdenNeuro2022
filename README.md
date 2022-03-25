@@ -1,5 +1,4 @@
 # Effects of somatic mutations on cellular phenotypes in iPSC models of neurodevelopment
-Scripts to reproduce analysis and figure generation in https://doi.org/10.1101/2022.03.04.482992
 
 This repository contains the scripts to reproduce the analysis and the figures of this paper (DOI): https://doi.org/10.1101/2022.03.04.482992
 It is divided in different sections:
