@@ -9,7 +9,7 @@ It is divided in the following sections:
 - **analysis**: It includes the scripts that analyse the impact of somatic variants in the pooled dopaminergic differentiation profiled at days 11, 30 and 52. It generates all the intermediate tables necessary to reproduce the main and supplementary figures. We included the input files required to run the array jobs.
 
 In the main directory, there are also those scripts:
-- **commands.sh**: indicates the order to run the entire pipeline and be able to reproduce the main figures (**figure*.R**) and the supplementary figures (**suppFigure*.R**) of the paper.
+- **commands.sh**: indicates the order to run the entire pipeline and be able to reproduce the main figures (figure*.R) and the supplementary figures (suppFigure*.R) of the paper.
 - **libraryInstall.R**: contains the list of required R packages to run the data analysis and to reproduce the figures of the paper.
 - **functionsToImport.R**: list of functions to be imported to reproduce figures.
 - **suppTabs/**: Folder with the supplementary tables (tab-separated values).
