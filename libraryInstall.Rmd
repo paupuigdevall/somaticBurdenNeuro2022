@@ -1,0 +1,48 @@
+---
+title: "Effects of somatic mutations on cellular phenotypes in iPSC models of neurodevelopment"
+author: "Pau Puigdevall"
+institute: "UCL Institute of Child Health"
+email: "p.puigdevall@ucl.ac.uk"
+date: "`r format(Sys.time(), '%B %e, %Y')`"
+output: 
+  BiocStyle::html_document:
+    code_folding: show
+vignette: >
+    %\VignetteIndexEntry{Vignette Title}
+    %\VignetteEngine{knitr::rmarkdown}
+    %\VignetteEncoding{UTF-8} 
+---
+
+
+```{r setup, include=F}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+# Library installation and import
+
+This is the list of packages used for the analysis and figure generation.
+
+```{r packages}
+packages <- c("wesanderson", "viridis", "tidyverse", "tidyr", "scales", "rtracklayer", "rhdf5", "readxl", "plotrix",
+              "pheatmap", "org.Hs.eg.db", "nnet", "limma", "knitr", "hdf5r", "harmony", "gridExtra", "grid",
+              "glue", "ggupset", "ggtext", "ggsignif", "ggrepel", "ggpubr", "ggplot2", "fgsea", "e1071", "dplyr",
+              "cowplot", "VennDiagram", "VariantAnnotation", "TxDb.Hsapiens.UCSC.hg19.knownGene", "Seurat", "Category",
+              "RColorBrewer", "MASS", "GenomicScores", "GenomicRanges", "GenomicFeatures", "GSEABase", "GOstats",
+              "rmarkdown")
+            
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
+```
+
+# Session Information
+
+```{r}
+sessionInfo()
+```
+

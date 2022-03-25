@@ -1,0 +1,11 @@
+# All pools 10-17 except pool12, leaving out outlier cell line HPSI0913i-gedo_33
+donor_filter:
+    pool14: ['HPSI0913i-gedo_3']
+cell_qc:
+    ['pct_counts_in_top_100_genes < 75', 'pct_counts_mito < 5', 'n_genes_by_counts > 200']
+resolution:
+    0.3
+harmony_batch_label:
+    'sample_id'
+harmony_theta:
+    2
