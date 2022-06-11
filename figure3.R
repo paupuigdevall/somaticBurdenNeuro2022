@@ -16,7 +16,7 @@ library(GOstats)
 library(org.Hs.eg.db)
 library(knitr)
 library(limma)
-#library(VennDiagram)
+library(VennDiagram)
 library(grid)
 library(tidyverse)
 library(ggsignif)
@@ -29,63 +29,6 @@ source("functionsToImport.R")
 
 ##############
 ### Fig 3A ###
-##############
-
-summTab <- readRDS("analysis/outputTabs/reproTab_cfracPerBatch.RDS")
-
-reproTab <- rbind(functionReproTab(summTab, repro="bioRep"),
-                  functionReproTab(summTab, repro="techRep"),
-                  functionReproTab(summTab, repro="tenXRep"),
-                  functionReproTab(summTab, repro="donorRep"))
-
-newlab <- c("bioRep"="Biological replicates",
-            "donorRep"="Pool replicates",
-            "techRep"="Technical replicates",
-            "tenXRep"="10x replicate")
-
-reproTab$type <- factor(reproTab$type, levels=c("donorRep","bioRep","techRep","tenXRep"))
-reproPlot <- ggplot(reproTab, aes(x=rep.x, y=rep.y))+
-  geom_point(alpha=0.5, size=2)+
-  facet_wrap(~type, labeller = labeller(type=newlab))+
-  xlab("Mean cell line proportion for Replicate 1")+
-  ylab("Mean cell line proportion for Replicate 2")+
-  #ggtitle("Reproducibility on line proportion")+
-  theme_bw()+
-  theme(plot.title=element_text(hjust=0.5, size=14, face="bold"),
-        axis.title=element_text(size=14),
-        axis.text=element_text(size=12),
-        strip.text = element_text(size = 14))+
-  geom_smooth(method="lm", col="grey40", alpha=0.25, size=0.5)
-
-
-corr <- sapply(unique(reproTab$type), function(x){
-  
-  tmp <- subset(reproTab, type==x)
-  fit11 <- lm(rep.y ~ rep.x, data = tmp)
-  
-  data.frame(type=x,
-             adj.r.squared=signif(summary(fit11)$adj.r.squared, 3),
-             p=signif(summary(fit11)$coef[2,4], 3))
-  
-}, simplify=F)
-
-corr <- do.call("rbind", corr)
-rownames(corr) <- NULL
-rownames(corr) <- corr$type
-
-reproPlot <- reproPlot +
-  geom_text(data=corr,
-            aes(label=paste0("italic(R) ^ 2 == ", adj.r.squared)), x=0.1, y=0.5, col="black",size=4, parse= T)+
-  geom_text(data=corr,
-            aes(label=paste0("italic(p) == ", p)), x=0.1, y=0.45, col="black",size=4, parse= T)
-
-pdf(file=paste0("figures/mainFigs/figure3A.pdf"))
-plot(reproPlot)
-dev.off()
-
-
-##############
-### Fig 3B ###
 ##############
 
 
@@ -188,13 +131,13 @@ poolComposition <- ggplot(tmpPerPool, aes(x=timePoint, y=cfrac, col=cline, group
   xlab("Differentiation timepoint")+
   ylab("Cell-line proportion")
 
-pdf(file=paste0("figures/mainFigs/figure3B.pdf"))
+pdf(file=paste0("figures/mainFigs/figure3A.pdf"))
 plot(poolComposition)
 dev.off()
 
 
 ##############
-### Fig 3C ###
+### Fig 3B ###
 ##############
 
 pathToFile <- "analysis/outputTabs/iPSC/"
@@ -411,8 +354,65 @@ bcorGrowthRate <- ggplot(subset(ratiosTablong, !is.na(newLabel)),
   )+
   ylab("Cell-line proliferation rate (in log10)")
 
-pdf(file=paste0("figures/mainFigs/figure3C.pdf"))
+pdf(file=paste0("figures/mainFigs/figure3B.pdf"))
 plot(bcorGrowthRate)
+dev.off()
+
+
+##############
+### Fig 3C ###
+##############
+
+summTab <- readRDS("analysis/outputTabs/reproTab_cfracPerBatch.RDS")
+
+reproTab <- rbind(functionReproTab(summTab, repro="bioRep"),
+                  functionReproTab(summTab, repro="techRep"),
+                  functionReproTab(summTab, repro="tenXRep"),
+                  functionReproTab(summTab, repro="donorRep"))
+
+newlab <- c("bioRep"="Biological replicates",
+            "donorRep"="Pool replicates",
+            "techRep"="Technical replicates",
+            "tenXRep"="10x replicate")
+
+reproTab$type <- factor(reproTab$type, levels=c("donorRep","bioRep","techRep","tenXRep"))
+reproPlot <- ggplot(reproTab, aes(x=rep.x, y=rep.y))+
+  geom_point(alpha=0.5, size=2)+
+  facet_wrap(~type, labeller = labeller(type=newlab))+
+  xlab("Mean cell line proportion for Replicate 1")+
+  ylab("Mean cell line proportion for Replicate 2")+
+  #ggtitle("Reproducibility on line proportion")+
+  theme_bw()+
+  theme(plot.title=element_text(hjust=0.5, size=14, face="bold"),
+        axis.title=element_text(size=14),
+        axis.text=element_text(size=12),
+        strip.text = element_text(size = 14))+
+  geom_smooth(method="lm", col="grey40", alpha=0.25, size=0.5)
+
+
+corr <- sapply(unique(reproTab$type), function(x){
+  
+  tmp <- subset(reproTab, type==x)
+  fit11 <- lm(rep.y ~ rep.x, data = tmp)
+  
+  data.frame(type=x,
+             adj.r.squared=signif(summary(fit11)$adj.r.squared, 3),
+             p=signif(summary(fit11)$coef[2,4], 3))
+  
+}, simplify=F)
+
+corr <- do.call("rbind", corr)
+rownames(corr) <- NULL
+rownames(corr) <- corr$type
+
+reproPlot <- reproPlot +
+  geom_text(data=corr,
+            aes(label=paste0("italic(R) ^ 2 == ", adj.r.squared)), x=0.1, y=0.5, col="black",size=4, parse= T)+
+  geom_text(data=corr,
+            aes(label=paste0("italic(p) == ", p)), x=0.1, y=0.45, col="black",size=4, parse= T)
+
+pdf(file=paste0("figures/mainFigs/figure3C.pdf"))
+plot(reproPlot)
 dev.off()
 
 

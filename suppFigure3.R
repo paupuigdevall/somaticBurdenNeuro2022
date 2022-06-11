@@ -26,7 +26,7 @@ library(MASS)
 source("functionsToImport.R")
 
 ##############
-### Fig 3B ###
+### Fig 3A ###
 ##############
 
 ##raw data
@@ -176,13 +176,13 @@ ratio_distr <- ggplot(ratiosTablong, aes(x=log10(ratioVal)))+
   geom_vline(data=subset(annotData,annot=="mean"), aes(xintercept=log10(value)), col="red", size=1)+
   geom_vline(data=subset(annotData,annot!="mean"), aes(xintercept=log10(value)), col="grey40", size=0.25, linetype="dashed")
 
-pdf(file=paste0("figures/suppFigs/suppfig3B.pdf"))
+pdf(file=paste0("figures/suppFigs/suppfig3A.pdf"))
 plot(ratio_distr)
 dev.off()
 
 
 ##############
-### Fig 3C ###
+### Fig 3B ###
 ##############
 
 summData <- readRDS("analysis/outputTabs/summData_donorCtype_Cells.RDS")
@@ -259,7 +259,7 @@ failedprolif <- ggplot(subset(ratiosTablong, !is.na(obsAndPredDA)),
   #ylab("Proliferation rate per time point (in log10)")
 
 
-pdf(file=paste0("figures/suppFigs/suppfig3C.pdf"))
+pdf(file=paste0("figures/suppFigs/suppfig3B.pdf"))
 plot(failedprolif)
 dev.off()
 

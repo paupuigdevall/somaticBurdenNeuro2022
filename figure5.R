@@ -79,6 +79,12 @@ dev.off()
 ### fig5B ###
 #############
 
+
+
+#############
+### fig5B ###
+#############
+
 summData$pool <- sapply(strsplit(summData$donor_extended, "/"), function(x) x[length(x)])
 diffmetrics <- read.table("suppTabs/suppTable1.txt",
                           header=T)
@@ -109,7 +115,7 @@ outlierLong$outlier_alltp_z2 <- unname(vec4[as.character(outlierLong$outlier_all
 
 my_comparisons <- list(c("Outlier","Non-outlier"))
 
-figure5b_1 <- ggplot(outlierLong, aes(x=outlier_alltp_z2, y=Burden))+
+figure5b_row2 <- ggplot(outlierLong, aes(x=outlier_alltp_z2, y=Burden))+
   geom_boxplot(outlier.shape=NA)+
   geom_jitter(width=0.25, alpha=0.5, aes(col=outlier_alltp_z2))+
   facet_wrap(~MutClass, scales="free_y", labeller = facet_labeller)+
@@ -129,19 +135,19 @@ figure5b_1 <- ggplot(outlierLong, aes(x=outlier_alltp_z2, y=Burden))+
 
 facet_bounds <- read.table(header=TRUE,
                            text=                           
-"MutClass ymin  ymax  breaks
-allMutBurden  0 300 50
-delMutBurden 0 100 20",
+                             "MutClass ymin  ymax  breaks
+                           allMutBurden  0 300 50
+                           delMutBurden 0 100 20",
                            stringsAsFactors=FALSE)
 
 ff <- with(facet_bounds,
            data.frame(Burden=c(ymin,ymax),
                       MutClass=c(MutClass,MutClass)))
 
-figure5b_1 <- figure5b_1 + geom_point(data=ff, x=NA)
+figure5b_row2 <- figure5b_row2 + geom_point(data=ff, x=NA)
 
 
-q <- ggplot_build(figure5b_1)
+q <- ggplot_build(figure5b_row2)
 
 mask_panel <- q$data[[3]]$PANEL==1
 
@@ -151,7 +157,7 @@ q$data[[3]]$yend[mask_panel] <- q$data[[3]]$yend[mask_panel]-40
 q$data[[3]]$y[!mask_panel] <- q$data[[3]]$y[!mask_panel]-20
 q$data[[3]]$yend[!mask_panel] <- q$data[[3]]$yend[!mask_panel]-20
 
-figure5b_1 <- ggplot_gtable(q)
+figure5b_row2 <- ggplot_gtable(q)
 
 
 
@@ -183,8 +189,8 @@ outAnalysis_onlyavail <- subset(outAnalysis, availOverall=="TRUE-TRUE-TRUE")
 compute_mean_se <- function(vector, tp="D11"){
   error <- qt(0.95,df=length(vector)-1)*sd(vector)/sqrt(length(vector))
   res <- data.frame(tp=tp,
-             mean=mean(vector),
-             error=error)
+                    mean=mean(vector),
+                    error=error)
   return(res)
   
 }
@@ -192,9 +198,9 @@ df_nOut <- rbind(compute_mean_se(outAnalysis_onlyavail$nTotalOutliers, tp="All T
                  compute_mean_se(outAnalysis_onlyavail$nOutliersTP11, tp="D11"),
                  compute_mean_se(outAnalysis_onlyavail$nOutliersTP30, tp="D30"),
                  compute_mean_se(outAnalysis_onlyavail$nOutliersTP52, tp="D52"))
-      
+
 df_nOut$tp <- factor(df_nOut$tp, levels=rev(c("D52","D30","D11","All TP")))
-figure5b_2 <- ggplot(df_nOut, aes(x=tp, y=mean)) + 
+figure5b_row1 <- ggplot(df_nOut, aes(x=tp, y=mean)) + 
   geom_pointrange(aes(ymin=mean-error, ymax=mean+error, fatten = 10))+
   theme_bw()+
   scale_y_continuous(breaks = seq(0,3,0.5), lim = c(0, 3), name = "Outlier events per outlier line")+
@@ -225,16 +231,17 @@ figure5b_3 <- outAnalysis_onlyavail[,c("donor_extended","trajectory")] %>%
   theme(axis.title=element_text(size=13),
         axis.text.y=element_text(size=12))
 
-figure5b_row2 <- ggarrange(figure5b_2, figure5b_3,
+figure5b_row1 <- ggarrange(figure5b_row1, figure5b_3,
                            ncol=2,nrow=1, common.legend = FALSE)
 
 
-figure5b <- ggarrange(figure5b_1, figure5b_row2,
-          ncol=1, nrow=2)
-  
+figure5b <- ggarrange(figure5b_row1, figure5b_row2,
+                      ncol=1, nrow=2)
+
 pdf(file="figures/mainFigs/figure5B.pdf")
 plot(figure5b)
 dev.off()
+
 
 #############
 ### fig5C ###
