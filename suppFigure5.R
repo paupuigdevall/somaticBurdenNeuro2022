@@ -18,8 +18,13 @@ library(glue)
 library(ggupset)
 library(wesanderson)
 library(tidyverse)
+library(RColorBrewer)
 
 source("functionsToImport.R")
+
+###############
+### SFig 5A ###
+###############
 
 ## outlier analysis
 summData <- readRDS("analysis/outputTabs/summData_donorCtype_Cells.RDS")
@@ -126,9 +131,8 @@ myplot <- ggplot(outlierLongest, aes(x=Group, y=Burden))+
   facet_grid(MutClass~outlierClass, scales="free_y", labeller = facet_labeller)+
   xlab("")+ylab("")+
   theme_bw()+
-  #ylab("Mutational burden")+
   theme(strip.text =element_text(size=20),
-        axis.text.y=element_text(size=20,),
+        axis.text.y=element_text(size=20),
         axis.text.x=element_text(size=20, angle=90,hjust=1, vjust=0.5),
         axis.title=element_text(size=13))+
   geom_signif(test="wilcox.test",
@@ -179,7 +183,179 @@ q$data[[3]] <- q$data[[3]][q$data[[3]]$annotation != "",]
 # and the final plot
 figure <- ggplot_gtable(q)
 
-pdf(file=paste0("figures/suppFigs/suppfig5.pdf"))
+pdf(file=paste0("figures/suppFigs/suppfig5A.pdf"))
 plot(figure)
 dev.off()
+
+
+###############
+### SFig 5B ###
+###############
+
+
+## column 1
+dfAnnot <- readRDS("analysis/outputTabs/outAnalysis/allgenesPerTPAnnot.RDS")
+exampleCorr <- readRDS("analysis/outputTabs/outAnalysis/exampleCorr_BCOR_D11_FPP-3.RDS")
+exampleCorr <- exampleCorr[!is.na(exampleCorr$meanExp),]
+exampleAnnot <- subset(dfAnnot, tp=="D11" & gene=="BCOR")
+clusters=c("FPP-3")
+exampleAnnot <- exampleAnnot[match(clusters, exampleAnnot$annot),]
+
+exampleCorr <- sapply(unique(exampleCorr$annot), function(z){
+  
+  tmp <- subset(exampleCorr, annot==z)
+  tmp$zscoMeanExp <- (tmp$meanExp-mean(tmp$meanExp))/sd(tmp$meanExp)
+  tmp$zscoCfrac <- (tmp$cfrac-mean(tmp$cfrac))/sd(tmp$cfrac)
+  
+  return(tmp)
+  
+}, simplify=F)
+
+exampleCorr <- do.call("rbind", exampleCorr)
+rownames(exampleCorr) <- NULL
+
+## column 2
+dfAnnot <- readRDS("analysis/outputTabs/outAnalysis/allgenesPerTPAnnot.RDS")
+exampleCorr2 <- readRDS("analysis/outputTabs/outAnalysis/exampleCorr_BCOR_D52_DA.RDS")
+exampleCorr2 <- exampleCorr2[!is.na(exampleCorr2$meanExp),]
+exampleAnnot2 <- subset(dfAnnot, tp=="D52" & gene=="BCOR")
+clusters=c("DA")
+exampleAnnot2 <- exampleAnnot2[match(clusters, exampleAnnot2$annot),]
+#exampleAnnot$annotNew <- paste0(exampleAnnot$tp,": ", exampleAnnot$annot, " (",exampleAnnot$gene," gene)")
+exampleCorr2 <- sapply(unique(exampleCorr2$annot), function(z){
+  
+  tmp <- subset(exampleCorr2, annot==z)
+  tmp$zscoMeanExp <- (tmp$meanExp-mean(tmp$meanExp))/sd(tmp$meanExp)
+  tmp$zscoCfrac <- (tmp$cfrac-mean(tmp$cfrac))/sd(tmp$cfrac)
+  
+  return(tmp)
+  
+}, simplify=F)
+
+exampleCorr2 <- do.call("rbind", exampleCorr2)
+rownames(exampleCorr2) <- NULL
+
+exampleCorr <- rbind(exampleCorr, exampleCorr2)
+exampleAnnotNew <- rbind(exampleAnnot, exampleAnnot2)
+
+vec <- c(
+  'FPP-3'="D11: FPP-3 (gene BCOR)",
+  'DA'="D52: DA (gene BCOR)"
+)
+
+exampleCorr$annot <- unname(vec[exampleCorr$annot])
+exampleCorr$annot <- factor(exampleCorr$annot, levels=c("D11: FPP-3 (gene BCOR)",
+                                                        "D52: DA (gene BCOR)"))
+exampleAnnotNew$annot <- unname(vec[exampleAnnotNew$annot])
+exampleAnnotNew$annot <- factor(exampleAnnotNew$annot, levels=c("D11: FPP-3 (gene BCOR)",
+                                                                "D52: DA (gene BCOR)"))
+
+figure5c_1 <- ggplot(exampleCorr, aes(x=zscoCfrac, y=zscoMeanExp))+
+  geom_point(size=4, alpha=0.5)+
+  facet_grid(~annot)+
+  theme_bw()+
+  xlab("Z-score Mean Expression")+
+  ylab("Z-score Cell-type fraction")+
+  theme(axis.title=element_text(size=13),
+        axis.text=element_text(size=12),
+        strip.text = element_text(size=12))
+
+tt <- ggplot_build(figure5c_1)
+
+figure5c_1 <- figure5c_1 + geom_text(data = exampleAnnotNew, aes(x = mean(tt$layout$panel_scales_x[[1]]$range$range),
+                                                                 y = 9,
+                                                                 label = paste0("italic(R) == ",signif(corrPearson,3))),
+                                     parse = TRUE, col="black",size=5)+
+  geom_text(data = exampleAnnotNew, aes(x = mean(tt$layout$panel_scales_x[[1]]$range$range),
+                                        y = 7,
+                                        label = paste0("italic(pAdj) == ",signif(pAdjusted,3))),
+            parse = TRUE, col="black",size=5)
+
+
+geneDistrPerTpPerAnnot <- function(dfAnnot, timePoint=c("D11","D52"),  combinations=list(c("D11","FPP-3"),c("D52","DA"))){
+  
+  tmp_tp <- subset(dfAnnot, tp %in% timePoint)
+  tmp_tp$annotNum <- paste0(tmp_tp$tp,": ",tmp_tp$annot, " (n=", tmp_tp$nDonors, " donors)")
+  
+  
+  annotPval=sapply(combinations, function(x){
+    
+    tmp_tpAnnot <- subset(tmp_tp, annot==x[2] & tp==x[1])
+    data.frame(tp=x[1],
+               annot=x[2],
+               annotNum=unique(tmp_tpAnnot$annotNum),
+               minCorr=min(tmp_tpAnnot[tmp_tpAnnot$pAdjusted>0.05,]$corrPearson),
+               maxCorr=max(tmp_tpAnnot[tmp_tpAnnot$pAdjusted>0.05,]$corrPearson))
+    
+  }, simplify=F)
+  
+  annotPval <- do.call("rbind", annotPval)
+  rownames(annotPval) <- NULL
+  
+  #tmp_tp
+  tmp_tpNew <- sapply(combinations, function(x){
+    
+    tmp_tpAnnot <- subset(tmp_tp, annot==x[2] & tp==x[1])
+    tmp_tpAnnot
+  }, simplify=F)
+  
+  tmp_tpNew <- do.call("rbind", tmp_tpNew)
+  rownames(tmp_tpNew) <- NULL
+  
+  clusters <- sapply(combinations, function(y) y[2])
+  
+  exampleAnnotNew2 <- exampleAnnotNew
+  exampleAnnotNew2$annot <- sapply(strsplit(sapply(strsplit(as.character(exampleAnnotNew2$annot), ": "), function(x) x[2]), " "), function(x) x[1])
+  exampleAnnotNew2 <-  merge(exampleAnnotNew2, annotPval)
+  
+  figPerTP <- ggplot(tmp_tpNew[tmp_tpNew$annot %in% clusters,], aes(x=corrPearson))+
+    geom_histogram(color="black", fill="white")+
+    facet_wrap(~annotNum)+
+    geom_vline(data=annotPval,
+               mapping=aes(xintercept=minCorr), col="purple", linetype="dashed", size=0.75)+
+    geom_vline(data=annotPval,
+               mapping=aes(xintercept=maxCorr), col="purple", linetype="dashed", size=0.75)+
+    theme_bw()+
+    ylab("Number of genes")+
+    xlab("Pearson coefficient")+
+    theme(plot.title=element_text(hjust=0.5, face="bold"))+
+    geom_text(data=subset(annotPval, annot==annot),
+              aes(x=minCorr, y=2000), col="purple", angle=90, label="pAdj<0.05", vjust=-1, size=5)+
+    geom_text(data=subset(annotPval, annot==annot),
+              aes(x=maxCorr, y=2000), col="purple", angle=90, label="pAdj<0.05", vjust=2, size=5)+
+    geom_point(data=subset(exampleAnnotNew2, annotNum==annotNum), aes(x=corrPearson, y=1000), col="red", size =4)+
+    geom_text(data=subset(exampleAnnotNew2, annotNum==annotNum), aes(x=corrPearson, y=1000, label=gene, vjust=-1, hjust=0.15))+
+    theme(axis.title=element_text(size=13),
+          axis.text=element_text(size=12),
+          strip.text = element_text(size=12))
+  
+  return(figPerTP)
+  
+}
+
+
+figure5c_2 <- geneDistrPerTpPerAnnot(dfAnnot, timePoint=c("D11","D52"),  combinations=list(c("D11","FPP-3"),c("D52","DA")))
+
+figure5b <- ggarrange(figure5c_1, figure5c_2,
+                      ncol=1, nrow=2)
+
+pdf(file=paste0("figures/suppFigs/suppfig5B.pdf"))
+plot(figure5b)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

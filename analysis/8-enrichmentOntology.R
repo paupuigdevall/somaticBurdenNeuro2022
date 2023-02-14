@@ -182,8 +182,8 @@ selectGenes <- function(inputGSEA_res, selection="observed_ptv"){
   
   match_idx <- match(selection, names(inputGSEA_res))
   tmp <- inputGSEA_res[[match_idx]]
-  list(successfulGenes=tmp[tmp$log2FC>quantile(tmp$log2FC, c(0.95)),]$entrezid,
-       failedGenes=tmp[tmp$log2FC<quantile(tmp$log2FC, c(0.05)),]$entrezid)
+  list(successfulGenes=tmp[tmp$log2FC<quantile(tmp$log2FC, c(0.1)),]$entrezid,
+       failedGenes=tmp[tmp$log2FC>quantile(tmp$log2FC, c(0.9)),]$entrezid)
 }
 
 
@@ -201,9 +201,9 @@ GOresults <- sapply(runGO, function(y){
 names(GOresults) <- sapply(runGO, function(y) y[3])
 
 
-suppTable2 <- do.call("rbind", GOresults)
-rownames(suppTable2) <- NULL
+suppTable3 <- do.call("rbind", GOresults)
+rownames(suppTable3) <- NULL
 
-write.table(suppTable2, file="../suppTabs/suppTable2.txt",
+write.table(suppTable3, file="../suppTabs/suppTable3.txt",
             sep="\t", quote=F, col.names=T, row.names = F)
 

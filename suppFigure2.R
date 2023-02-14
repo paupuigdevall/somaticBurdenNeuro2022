@@ -8,9 +8,9 @@ library(wesanderson)
 
 source("functionsToImport.R")
 
-##############
-### Fig 2A ###
-##############
+###############
+### SFig 2A ###
+###############
 
 
 poolSampleshg19_perc <- readRDS("analysis/outputTabs/poolSampleshg19.RDS")
@@ -70,9 +70,9 @@ plot(tmp_plot)
 dev.off()
 
 
-##############
-### Fig 2B ###
-##############
+###############
+### SFig 2B ###
+###############
 
 QC_tab <- read.table("analysis/outputTabs/QC_tab.txt", header=TRUE)
 QC_tab$pool_mod <- gsub("Pool", "", QC_tab$pool)
@@ -105,9 +105,9 @@ pdf(file=paste0("figures/suppFigs/suppfig2B.pdf"))
 plot(tmp_plot)
 dev.off()
 
-##############
-### Fig 2C ###
-##############
+###############
+### SFig 2C ###
+###############
 
 #input number of droplets
 
@@ -133,9 +133,9 @@ plot(tmp_plot)
 dev.off()
 
 
-##############
-### Fig 2J ###
-##############
+###############
+### SFig 2J ###
+###############
 
 metadata <- readRDS("analysis/outputTabs/suppData1.RDS")
 heatmapQC <- sapply(unique(metadata$batch), function(x){

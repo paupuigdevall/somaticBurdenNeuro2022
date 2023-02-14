@@ -207,8 +207,255 @@ plot(fig4a)
 dev.off()
 
 
+##############
+### Fig 4B ###
+##############
+
+metadata <- readRDS("analysis/outputTabs/suppData1.RDS")
+valid_3tp <- sapply(unique(metadata$donor_extended), function(x){
+  
+  tmp <- subset(metadata, donor_extended==x)
+  
+  if (length(unique(tmp$tp))==3){
+    x
+  } else {
+    NA
+  }
+  
+}, simplify=T)
+
+valid_3tp <- unname(valid_3tp[!is.na(valid_3tp)])
+metadata <- metadata[metadata$donor_extended %in% valid_3tp,]
+
+dirFiles <- "demuxlet/deconvolution/"
+Files <- dir(dirFiles)[grepl("_sample_list.txt",dir(dirFiles))]
+datalist = lapply(paste0(dirFiles,Files), function(x)read.table(x, header=F))
+names(datalist) <- gsub("_sample.+","", Files)
+
+genes_state_KO <- c("ASXL3","SNCA","CTNNB1","TCF4","CHD2","SET","GATAD2B","TBL1XR1")
+names(genes_state_KO) <- c("pool11","pool12","pool13","pool14","pool16","pool17","pool20","pool21")
+
+tmpPerPool <- sapply(unique(metadata$pool_id), function(x){
+  
+  tmpPool <- subset(metadata, pool_id==x)
+  tmpclines <- datalist[[x]]$V1
+  
+  if (any(x %in% names(genes_state_KO))){
+    
+    mask <- grepl("kolf_2", tmpclines)
+    tmpko <- unname(genes_state_KO[match(x, names(genes_state_KO))])
+    tmpclines[mask] <- paste0(tmpclines[mask],"/", tmpko)
+    
+  }
+  
+  tmp_tp <- sapply(sort(c("D0",unique(tmpPool$tp))), function(y){
+    
+    if (y=="D0"){
+      
+      tmp <- data.frame(cline=tmpclines,
+                        pool=x,
+                        timePoint=y,
+                        cfrac=signif(1/length(tmpclines),3))
+      
+      
+    } else {
+      
+      tmpPool2 <- subset(tmpPool, tp==y)
+      tabNum <- table(tmpPool2$donor_id)
+      
+      tmp <- data.frame(cline=tmpclines,
+                        pool=x,
+                        timePoint=y,
+                        cfrac=NA)
+      tmp$cfrac <- signif(tabNum[match(tmp$cline, names(tabNum))]/sum(tabNum),3)
+      
+      
+    }
+    
+    
+    tmp
+    
+    
+    
+  }, simplify=F)
+  
+  tmp_tp <- do.call("rbind", tmp_tp)
+  rownames(tmp_tp) <- NULL
+  tmp_tp
+  
+}, simplify=F)
+
+tmpPerPool <- do.call("rbind", tmpPerPool)
+rownames(tmpPerPool) <- NULL
+
+tmpPerPool$pool <- firstup(tmpPerPool$pool)
+tmpPerPool$pool <- as.factor(tmpPerPool$pool)
+tmpPerPool$pool <- factor(tmpPerPool$pool,
+                          levels=levels(tmpPerPool$pool)[order(as.numeric(gsub("Pool","",levels(tmpPerPool$pool))))])
+
+tmpPerPool$cline_expanded <- paste0(tmpPerPool$cline,"/", tmpPerPool$pool)
+tmpPerPool$cfrac_log1p <- signif(log1p(tmpPerPool$cfrac),3)
+ratiosTab <- sapply(unique(tmpPerPool$cline_expanded), function(z){
+  
+  tmp <- subset(tmpPerPool, cline_expanded==z)
+  
+  data.frame(cline_expanded=z,
+             pool=as.character(unique(tmp$pool)),
+             ratio_d11_d0=signif(subset(tmp, timePoint=="D11")$cfrac/subset(tmp, timePoint=="D0")$cfrac,3),
+             ratio_d30_d0=signif(subset(tmp, timePoint=="D30")$cfrac/subset(tmp, timePoint=="D0")$cfrac,3),
+             ratio_d52_d0=signif(subset(tmp, timePoint=="D52")$cfrac/subset(tmp, timePoint=="D0")$cfrac,3))
+  
+  
+}, simplify=F)
+
+ratiosTab <- do.call("rbind", ratiosTab)
+rownames(ratiosTab) <- NULL
+
+ratiosTab$pool <- firstup(ratiosTab$pool)
+
+
+## do that for the three Ratios
+
+cols <- colnames(ratiosTab)[grepl("ratio",colnames(ratiosTab))]
+
+
+## outlier analysis
+summData <- readRDS("tabs/summData_donorCtype_Cells.RDS")
+summData <- subset(summData, quantile!=1)
+
+summData <- sapply(unique(summData$tp), function(x){
+  
+  tmp <- subset(summData, tp==x)
+  annotTmp <- sapply(unique(tmp$annot), function(y){
+    
+    tmp2 <- subset(tmp, annot==y)
+    tmp2$zsco <- round((tmp2$cfrac-mean(tmp2$cfrac))/sd(tmp2$cfrac),2)
+    tmp2$outlier <- abs(tmp2$zsco)>2
+    tmp2
+    
+  }, simplify=F)
+  
+  annotTmp <- do.call("rbind", annotTmp)
+  rownames(annotTmp) <- NULL
+  annotTmp
+  
+}, simplify=F)
+
+summData <- do.call("rbind", summData)
+rownames(summData) <- NULL
+
+
+summData$pool <- sapply(strsplit(summData$donor_extended, "/"), function(x) x[length(x)])
+summData$donor_extended <- gsub("pool","Pool", summData$donor_extended)
+
+allClust <- readRDS("analysis/outputTabs/corr_cfracBurdenprolif.RDS")
+adjList <- sapply(unique(allClust$annotId), function(x){
+  
+  tmp <- subset(allClust, annotId==x)
+  tmp <- tmp[order(tmp$logRegPval, decreasing = F),]
+  tmp$adjPval <- p.adjust(tmp$wilcoxPval, "BH")
+  tmp
+  
+}, simplify=F)
+
+
+adjList_filt <- sapply(adjList, function(x){
+  subset(x, adjPval<0.05)
+  
+}, simplify=F)
+
+adjList_filt <- do.call("rbind", adjList_filt)
+rownames(adjList_filt) <- NULL
+
+retain <- table(metadata$annot, metadata$tp)*100/colSums(table(metadata$annot, metadata$tp))>2
+retain <- retain[,"D52"]
+retain <- names(retain[retain])
+
+adjList_filt2 <- adjList_filt[adjList_filt$annotId %in% retain,]
+
+proliferationAndCellFraction <- function(ratio="ratio_d11_d0", timePoint="D11"){
+  
+  tmpCfrac <- subset(summData, tp==timePoint)
+  tmpCfrac$prolifRate <- ratiosTab[match(tmpCfrac$donor_extended, ratiosTab$cline_expanded),ratio]
+  tmpCfrac$ratioType <- ratio
+  
+  majorTypes <-names(which(sapply(unique(tmpCfrac$annot), function(x){
+    mean(subset(summData, tp==timePoint & annot==x)$cfrac)>0.02
+  })))
+  
+  annotCorr <- sapply(majorTypes, function(x){
+    
+    tmpCfrac_annot <- subset(tmpCfrac, annot==x)
+    res <- lm(cfrac~prolifRate, data=tmpCfrac_annot)
+    data.frame(annot=x,
+               corrPearson=unname(cor.test(tmpCfrac_annot$prolifRate, tmpCfrac_annot$cfrac, family="pearson")$estimate),
+               pval_lm=summary(res)$coef["prolifRate","Pr(>|t|)"],
+               effect_size_lm=summary(res)$coef["prolifRate","Estimate"],
+               tp=timePoint,
+               prolifRate=ratio)
+    
+  }, simplify=F)
+  
+  annotCorr <- do.call("rbind", annotCorr)
+  rownames(annotCorr) <- NULL
+  annotCorr$pAdj <- p.adjust(annotCorr$pval_lm, "BH")
+  annotCorr$signif <- pvalConverter(annotCorr$pAdj)
+  
+  return(annotCorr)
+  
+}
+
+prolifTable <- proliferationAndCellFraction(ratio="ratio_d52_d0", timePoint="D52")
+
+signif.floor <- function(x, n){
+  pow <- floor( log10( abs(x) ) ) + 1 - n
+  y <- floor(x / 10 ^ pow) * 10^pow
+  # handle the x = 0 case
+  y[x==0] <- 0
+  y
+}
+
+signif.ceiling <- function(x, n){
+  pow <- floor( log10( abs(x) ) ) + 1 - n
+  y <- ceiling(x / 10 ^ pow) * 10^pow
+  # handle the x = 0 case
+  y[x==0] <- 0
+  y
+}
+
+plotD52 <- ggplot(data=prolifTable, aes(x=annot, y=tp, fill=corrPearson))+
+  geom_tile(col="black")+
+  geom_point(data=prolifTable, aes(x=annot, y=tp, size=signif, shape=signif))+
+  theme_bw()+
+  ylab("")+xlab("")+
+  scale_y_discrete(position = "right")+
+  theme(legend.position="top",
+        axis.ticks.y=element_blank(),
+        axis.text.y=element_blank(),
+        legend.title=element_text(size=14, face="bold"),
+        axis.text.x=element_text(angle=90, hjust=0.5, vjust=0.5, size=14),
+        plot.title=element_text(hjust=0.5, size=13, face="bold"),
+        legend.text=element_text(size=12))+
+  #ggtitle("Cell-line proliferation ~ Cell-type fraction (Day 52)")+
+  scale_size_manual(name="LinearReg P.adj", values=c(4,4,6,8),breaks=c("ns","*","**","***"))+
+  scale_shape_manual(name="LinearReg P.adj",values=c(1,16,16,16), breaks=c("ns","*","**","***"))+
+  scale_fill_gradientn(name="Pearson correlation",
+                       colours = c("orange",
+                                   "white", "blue"),
+                       limits=c(signif.floor(min(prolifTable$corrPearson),1),
+                                signif.ceiling(max(prolifTable$corrPearson),1)),
+                       labels=seq(signif.floor(min(prolifTable$corrPearson),1),signif.ceiling(max(prolifTable$corrPearson),1),0.2),
+                       breaks=seq(signif.floor(min(prolifTable$corrPearson),1),signif.ceiling(max(prolifTable$corrPearson),1),0.2),
+                       guide = guide_colourbar(barwidth = 10, nbin = 5))+
+  guides(size=guide_legend(nrow=3,byrow=TRUE))
+
+pdf(file=paste0("figures/mainFigs/figure4B.pdf"))
+plot(plotD52)
+dev.off()
+
+
 #############
-### fig4B ###
+### fig4C ###
 #############
 
 ## DE analysis (add to scripts)
@@ -255,7 +502,7 @@ size_values=c("ns"=0,
 myPalette <- colorRampPalette(brewer.pal(9, "YlOrRd"))
 my_breaks <- c(0,100,200,300,400,500)
 
-fig4b <- ggplot(data=heatmap_df, aes(x=timepoint, y=annot, fill=numDE))+
+fig4c <- ggplot(data=heatmap_df, aes(x=timepoint, y=annot, fill=numDE))+
   geom_tile()+
   theme_classic()+
   theme(axis.text.x=element_text(vjust=0.5),
@@ -278,12 +525,12 @@ fig4b <- ggplot(data=heatmap_df, aes(x=timepoint, y=annot, fill=numDE))+
   scale_size_manual(name="Adj.Pval", values=size_values)+
   guides(shape=F)
 
-pdf(file="figures/mainFigs/figure4B.pdf")
-plot(fig4b)
+pdf(file="figures/mainFigs/figure4C.pdf")
+plot(fig4c)
 dev.off()
 
 #############
-### fig4C ###
+### fig4D ###
 #############
 
 stopifnot(all(!is.na(match(summResults$geneDE, geneUniverse$symbol))))
@@ -357,8 +604,8 @@ report_testClust <- sapply(1:length(list_clustr_ddd), function(x){
 #saveRDS(report_testClust, file="analysis/outputTabs/DEsinglecell/report_testClust_ddd2.RDS")
 #report_testClust <- readRDS("analysis/outputTabs/DEsinglecell/report_testClust_ddd2.RDS")
 
-suppTable5 <- rbind(report_allclusters, report_allsignif_ddd, do.call("rbind", report_testClust))
-write.table(suppTable5, file="suppTabs/suppTable5.txt",
+suppTable7 <- rbind(report_allclusters, report_allsignif_ddd, do.call("rbind", report_testClust))
+write.table(suppTable7, file="suppTabs/suppTable7.txt",
             quote=F, sep="\t", col.names=T, row.names=F)
 
 
@@ -400,7 +647,7 @@ reportInfo$mostShared <- !is.na(match(reportInfo$Term,names(sort(table(reportInf
 neuroTab <- subset(reportInfo, neuroRelated==TRUE)
 neuroTab <- rbind(neuroTab, fillNA(neuroTab, list_clustr_ddd, highlight="neuroRelated"))
 maxOddsNeuro <- ceiling(max(subset(reportInfo, neuroRelated==TRUE)$OddsRatio))
-fig4c <- ggplot(neuroTab,
+fig4d <- ggplot(neuroTab,
                 aes(y=Term, x=label, fill=OddsRatio))+
   geom_tile(colour = "black")+
   theme_classic()+
@@ -417,7 +664,7 @@ fig4c <- ggplot(neuroTab,
                        na.value = 'grey90')+
   geom_text(aes(label=position))
 
-pdf(file="figures/mainFigs/figure4C.pdf", width = 7, height = 4)
-plot(fig4c)
+pdf(file="figures/mainFigs/figure4D.pdf", width = 7, height = 4)
+plot(fig4d)
 dev.off()
 

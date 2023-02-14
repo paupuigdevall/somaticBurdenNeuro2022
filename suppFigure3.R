@@ -25,9 +25,9 @@ library(MASS)
 
 source("functionsToImport.R")
 
-##############
-### Fig 3A ###
-##############
+###############
+### SFig 3A ###
+###############
 
 ##raw data
 metadata <- readRDS("analysis/outputTabs/suppData1.RDS")
@@ -181,9 +181,9 @@ plot(ratio_distr)
 dev.off()
 
 
-##############
-### Fig 3B ###
-##############
+###############
+### SFig 3B ###
+###############
 
 summData <- readRDS("analysis/outputTabs/summData_donorCtype_Cells.RDS")
 summDataTP <- subset(summData, tp=="D52")
@@ -264,9 +264,9 @@ plot(failedprolif)
 dev.off()
 
 
-##############
-### Fig 3D ###
-##############
+###############
+### SFig 3D ###
+###############
 
 allClust <- readRDS("analysis/outputTabs/corr_cfracBurdenprolif.RDS")
 

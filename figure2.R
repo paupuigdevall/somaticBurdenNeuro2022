@@ -126,7 +126,7 @@ plot2bFunction <- function(newendoderm, var="All variants", mainTitle="All varia
   figure2bTab_all <- subset(newendoderm, varCategory==var)
   corr_all <- subset(corr, varCategory==var)
   endodermPlot <- ggplot(figure2bTab_all, aes(x=outcome, y=mutBurden))+
-    geom_point(size=3, alpha=0.5, col="blue")+
+    geom_point(size=3, alpha=0.5, col="black")+
     theme_bw()+
     scale_x_continuous(breaks=seq(0,1,0.2),
                        labels=seq(0,1,0.2))+
@@ -320,7 +320,7 @@ runGO <- list(c("observed_del","failedGenes", "Failed_Observed_Del"),
               c("predicted_del","successfulGenes", "Succ_Predicted_Del")) 
 
 
-GOresults <- read.table("suppTabs/suppTable2.txt",
+GOresults <- read.table("suppTabs/suppTable3.txt",
                          sep="\t", header=T)
 
 GOresults <- sapply(unique(GOresults$label), function(x) subset(GOresults, label==x), simplify=F)

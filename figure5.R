@@ -75,15 +75,12 @@ plot(fig5a)
 dev.off()
 
 
-#############
-### fig5B ###
-#############
-
 
 
 #############
 ### fig5B ###
 #############
+
 
 summData$pool <- sapply(strsplit(summData$donor_extended, "/"), function(x) x[length(x)])
 diffmetrics <- read.table("suppTabs/suppTable1.txt",
@@ -245,236 +242,6 @@ dev.off()
 
 #############
 ### fig5C ###
-#############
-
-
-readSpecifiedDir <- function(tp="D11"){
-
-  dirToSave <- paste0("analysis/outputTabs/outAnalysis/")
-  #setwd(dirToSave)
-
-  df <- paste0(dirToSave, list.files(path=dirToSave, pattern = "D11_.+.RDS")) %>%
-    map(readRDS) %>%
-    bind_rows()
-
-  return(df)
-
-}
-
-dfAnnot <- rbind(readSpecifiedDir(tp="D11"),
-                 readSpecifiedDir(tp="D30"),
-                 readSpecifiedDir(tp="D52"))
-dfAnnot <- dfAnnot[!(is.na(dfAnnot$pval) & is.na(dfAnnot$corrPearson)),]
-dfAnnot$pAdjusted <- p.adjust(dfAnnot$pval, "BH")
-
-## Download Cosmic database, version 90 (GRCh37)
-cat( "Annotating COSMIC Tier 1 gene-level information \n")
-path_to_cosmic_db <- "inputTabs/CosmicMutantExportCensus.tsv"
-cosmic_db <- read.table(path_to_cosmic_db, sep="\t", header=TRUE)
-cosmic_db <- cosmic_db[cosmic_db$Tier==1,]
-cosmic_db <- as.character(unique(cosmic_db$Gene.name))
-
-## Download DDG2P genes (24.1.2020)
-cat( "Annotating DDD gene-level curated list \n")
-path_to_ddd_genes <- "inputTabs/DDD/DDG2P_24_1_2020.tsv"
-ddd_curated <- read.csv(path_to_ddd_genes, sep="\t")
-ddd_dominantMOI <- as.character(unique(ddd_curated[ddd_curated$allelic.requirement=="monoallelic",]$gene.symbol))
-ddd_curated <- as.character(unique(ddd_curated$gene.symbol))
-
-dfAnnot$CosmicT1 <- dfAnnot$gene %in% cosmic_db
-dfAnnot$DDD <- dfAnnot$gene %in% ddd_curated
-# saveRDS(dfAnnot, file="analysis/outputTabs/outAnalysis/allgenesPerTPAnnot.RDS")
-# dfAnnot <- readRDS("analysis/outputTabs/outAnalysis/allgenesPerTPAnnot.RDS")
-
-exampleCorr <- readRDS("analysis/outputTabs/outAnalysis/exampleCorr_KMT2D.RDS")
-exampleCorr <- exampleCorr[!is.na(exampleCorr$meanExp),]
-exampleAnnot <- subset(dfAnnot, tp=="D11" & gene=="KMT2D")
-clusters=c("FPP-1","DA")
-exampleAnnot <- exampleAnnot[match(clusters, exampleAnnot$annot),]
-#exampleAnnot$annotNew <- paste0(exampleAnnot$tp,": ", exampleAnnot$annot, " (",exampleAnnot$gene," gene)")
-exampleCorr <- sapply(unique(exampleCorr$annot), function(z){
-  
-  tmp <- subset(exampleCorr, annot==z)
-  tmp$zscoMeanExp <- (tmp$meanExp-mean(tmp$meanExp))/sd(tmp$meanExp)
-  tmp$zscoCfrac <- (tmp$cfrac-mean(tmp$cfrac))/sd(tmp$cfrac)
-  
-  return(tmp)
-  
-}, simplify=F)
-
-exampleCorr <- do.call("rbind", exampleCorr)
-rownames(exampleCorr) <- NULL
-
-facet_names <- c(
-  'DA'="D11: DA (gene KMT2D)",
-  'FPP-1'="D11: FPP-1 (gene KMT2D)"
-)
-
-figure5c_1 <- ggplot(exampleCorr, aes(x=zscoCfrac, y=zscoMeanExp))+
-  geom_point(size=4, alpha=0.5)+
-  facet_grid(~annot, labeller=as_labeller(facet_names))+
-  theme_bw()+
-  xlab("Z-score Mean Expression")+
-  ylab("Z-score Cell-type fraction")+
-  theme(axis.title=element_text(size=13),
-        axis.text=element_text(size=12),
-        strip.text = element_text(size=12))
-
-tt <- ggplot_build(figure5c_1)
-
-figure5c_1 <- figure5c_1 + geom_text(data = exampleAnnot, aes(x = mean(tt$layout$panel_scales_x[[1]]$range$range),
-                                     y = 9,
-                                     label = paste0("italic(R) == ",signif(corrPearson,3))),
-            parse = TRUE, col="black",size=5)+
-  geom_text(data = exampleAnnot, aes(x = mean(tt$layout$panel_scales_x[[1]]$range$range),
-                                     y = 7,
-                                     label = paste0("italic(pAdj) == ",signif(pAdjusted,1))),
-            parse = TRUE, col="black",size=5)
-
-
-
-geneDistrPerTpPerAnnot <- function(dfAnnot, timePoint="D11", clusters=c("FPP-1","DA")){
-  
-  tmp_tp <- subset(dfAnnot, tp==timePoint)
-  tmp_tp$annotNum <- paste0(tmp_tp$tp,": ",tmp_tp$annot, " (n=", tmp_tp$nDonors, " donors)")
-  
-  annotPval=sapply(clusters, function(x){
-    
-    tmp_tpAnnot <- subset(tmp_tp, annot==x)
-    data.frame(tp=timePoint,
-               annot=x,
-               annotNum=unique(tmp_tpAnnot$annotNum),
-               minCorr=min(tmp_tpAnnot[tmp_tpAnnot$pAdjusted>0.05,]$corrPearson),
-               maxCorr=max(tmp_tpAnnot[tmp_tpAnnot$pAdjusted>0.05,]$corrPearson))
-    
-  }, simplify=F)
-  
-  annotPval <- do.call("rbind", annotPval)
-  rownames(annotPval) <- NULL
-
-  #tmp_tp
-  
-  figPerTP <- ggplot(tmp_tp[tmp_tp$annot %in% clusters,], aes(x=corrPearson))+
-    geom_histogram(color="black", fill="white")+
-    facet_wrap(~annotNum)+
-    geom_vline(data=annotPval,
-               mapping=aes(xintercept=minCorr), col="purple", linetype="dashed", size=0.75)+
-    geom_vline(data=annotPval,
-               mapping=aes(xintercept=maxCorr), col="purple", linetype="dashed", size=0.75)+
-    theme_bw()+
-    ylab("Number of genes")+
-    xlab("Pearson coefficient")+
-    #ggtitle("Z-score correlation: Gene expression ~ Cell-type fraction")+
-    theme(plot.title=element_text(hjust=0.5, face="bold"))+
-    geom_text(data=subset(annotPval, annot=="DA"),
-              aes(x=minCorr, y=750), col="purple", angle=90, label="pAdj<0.05", vjust=-1, size=5)+
-    geom_text(data=subset(annotPval, annot=="DA"),
-              aes(x=maxCorr, y=750), col="purple", angle=90, label="pAdj<0.05", vjust=2, size=5)+
-    theme(axis.title=element_text(size=13),
-          axis.text=element_text(size=12),
-          strip.text = element_text(size=12))
-  
-  return(figPerTP)
-
-}
-
-
-figure5c_2 <- geneDistrPerTpPerAnnot(dfAnnot, timePoint="D11", clusters=c("FPP-1","DA"))
-  
-figure5c <- ggarrange(figure5c_1, figure5c_2,
-                      ncol=1, nrow=2)
-
-pdf(file="figures/mainFigs/figure5C.pdf")
-plot(figure5c)
-dev.off()
-
-
-
-#############
-### fig5D ###
-#############
-dfAnnot <- readRDS("analysis/outputTabs/outAnalysis/allgenesPerTPAnnot.RDS")
-
-enrichTab <- function(dfAnnot, geneSet="DDD"){
-  
-  allTpEnrich <- sapply(unique(dfAnnot$tp), function(x){
-    
-    tmp <- subset(dfAnnot, tp==x)
-    
-    annotPerTp <- sapply(unique(tmp$annot), function(y){
-      
-      tmp2 <- subset(tmp, annot==y)
-      mtrixEnrich <- matrix(NA, nrow=2, ncol=2)
-      rownames(mtrixEnrich) <- c("signif","nonsignif")
-      colnames(mtrixEnrich) <- c("inGeneSet","notGeneSet")
-      matchCol <- match(geneSet, colnames(tmp2))
-      mtrixEnrich["signif","inGeneSet"] <- sum(tmp2$pAdjusted<0.05 & tmp2[,matchCol])
-      mtrixEnrich["signif","notGeneSet"] <- sum(tmp2$pAdjusted<0.05 & !tmp2[,matchCol])
-      mtrixEnrich["nonsignif","inGeneSet"] <- sum(!tmp2$pAdjusted<0.05 & tmp2[,matchCol])
-      mtrixEnrich["nonsignif","notGeneSet"] <- sum(!tmp2$pAdjusted<0.05 & !tmp2[,matchCol])
-
-      tmp <- data.frame(tp=x,
-                        annot=y,
-                        #pval=chisq.test(mtrixEnrich)$p.value,
-                        pval=chisq.test(mtrixEnrich, simulate.p.value = TRUE)$p.value,
-                        #pval=prop.test(mtrixEnrich)$p.value,
-                        nDon=unique(tmp2$nDonors),
-                        geneSetTested=geneSet)
-
-      tmp
-      
-    }, simplify=F)
-    
-    annotPerTp <- do.call("rbind", annotPerTp)
-    rownames(annotPerTp) <- NULL
-    annotPerTp
-    
-  }, simplify=F)
-  
-  
-  allTpEnrich <- do.call("rbind", allTpEnrich)
-  rownames(allTpEnrich) <- NULL
-
-  return(allTpEnrich)
-  
-}
-
-enrichRes <- rbind(enrichTab(dfAnnot, geneSet="DDD"),
-                   enrichTab(dfAnnot, geneSet="CosmicT1"))
-  
-enrichRes$pvalAdj <- p.adjust(enrichRes$pval,"BH")
-enrichRes$signif <- pvalConverter(enrichRes$pvalAdj)
-enrichRes$combination <- paste0(enrichRes$tp,"-", enrichRes$geneSetTested)
-enrichRes$combination <- factor(enrichRes$combination, levels=rev(paste0(rep(c("D11","D30","D52"),2),"-", c(rep("DDD",3),rep("CosmicT1",3)))))
-enrichRes$combination2 <- paste0(enrichRes$tp,"-", enrichRes$annot)
-enrichRes <- addMissingNA(enrichRes)
-
-myPalette <- colorRampPalette(brewer.pal(3, "YlOrRd"))
-
-enrichRes$signif <- factor(enrichRes$signif, levels=c("**","*","ns"))
-fig5d <- ggplot(enrichRes, aes(y=combination, x=annot, fill=signif))+
-  geom_tile(colour = "black")+
-  theme_classic()+
-  geom_text(aes(x=annot,y=combination, label=nDon))+
-  theme(axis.text.x=element_text(angle=90, vjust=0.5, size=12, hjust=1),
-        axis.text.y=element_text(size=12),
-        legend.title=element_text(size=13, face="bold", hjust=0.5),
-        legend.text=element_text(size=13),
-        legend.position = "top")+
-  xlab("")+ylab("")+
-  scale_fill_manual(name="Gene set enrichment on\n(anti)-correlated genes",
-                    breaks = levels(enrichRes$signif),
-                    values=rev(myPalette(3)),
-                    na.value = 'grey90')
-
-
-pdf(file="figures/mainFigs/figure5D.pdf", width=10, height = 5)
-plot(fig5d)
-dev.off()
-
-
-#############
-### fig5E ###
 #############
 
 metadata <- readRDS("analysis/outputTabs/suppData1.RDS")
@@ -667,12 +434,12 @@ allmerged <- merge(outlierLong, ratiosTab, by.y="cline_expanded", by.x="donor_ex
 resAll <- glm(formula= as.factor(agg_allTP)~ratio_d52_d0, family = binomial, data=allmerged)
 
 pval_wilcox <- function(outcomeSelected="agg_allTP", growthRatio="ratio_d52_d0"){
-
+  
   df <- data.frame(outlierDef=outcomeSelected,
                    growthRatioUsed=growthRatio,
                    pvalWilcox=wilcox.test(subset(allmerged, get(outcomeSelected)=="Outlier")[,growthRatio],
                                           subset(allmerged, get(outcomeSelected)=="Non-outlier")[,growthRatio])$p.value)
-
+  
   return(df)
 }
 
@@ -719,7 +486,287 @@ logRegOutliers <- ggplot(allmerged, aes(x=Day52, y=ratio_d52_d0))+
   #           aes(x=1.5,y=9.5, label=paste0("Pval=", formatC(pval_logReg, format = "e", digits = 2))), size=7)+
   geom_text(data=subset(pvalResults,test.name=="Day52"), aes(x=1.5,y=10.25), size=5,label="Logistic Regression")
 
-pdf(file="figures/mainFigs/figure5E.pdf", width=10, height = 5)
+pdf(file="figures/mainFigs/figure5C.pdf", width=10, height = 5)
 plot(logRegOutliers)
 dev.off()
+
+
+#############
+### fig5D ###
+#############
+
+readSpecifiedDir <- function(tp="D11"){
+
+  dirToSave <- paste0("analysis/outputTabs/outAnalysis/")
+  #setwd(dirToSave)
+
+  df <- paste0(dirToSave, list.files(path=dirToSave, pattern = paste0(tp,"_clustersPerGene_.+.RDS"))) %>%
+    map(readRDS) %>%
+    bind_rows()
+
+  return(df)
+
+}
+
+dfAnnot <- rbind(readSpecifiedDir(tp="D11"),
+                 readSpecifiedDir(tp="D30"),
+                 readSpecifiedDir(tp="D52"))
+dfAnnot <- dfAnnot[!(is.na(dfAnnot$pval) & is.na(dfAnnot$corrPearson)),]
+dfAnnot$pAdjusted <- p.adjust(dfAnnot$pval, "BH")
+
+## Download Cosmic database, version 90 (GRCh37)
+cat( "Annotating COSMIC Tier 1 gene-level information \n")
+path_to_cosmic_db <- "analysis/inputTabs/CosmicMutantExportCensus.tsv"
+cosmic_db <- read.table(path_to_cosmic_db, sep="\t", header=TRUE)
+cosmic_db <- cosmic_db[cosmic_db$Tier==1,]
+cosmic_db <- as.character(unique(cosmic_db$Gene.name))
+
+## Download DDG2P genes (24.1.2020)
+cat( "Annotating DDD gene-level curated list \n")
+path_to_ddd_genes <- "analysis/inputTabs/DDG2P_24_1_2020.tsv"
+ddd_curated <- read.csv(path_to_ddd_genes, sep="\t")
+ddd_dominantMOI <- as.character(unique(ddd_curated[ddd_curated$allelic.requirement=="monoallelic",]$gene.symbol))
+ddd_curated <- as.character(unique(ddd_curated$gene.symbol))
+
+dfAnnot$CosmicT1 <- dfAnnot$gene %in% cosmic_db
+dfAnnot$DDD <- dfAnnot$gene %in% ddd_curated
+saveRDS(dfAnnot, file="analysis/outputTabs/allgenesPerTPAnnot.RDS")
+
+saveRDS(linesData, file="outputTabs/outAnalysis/exampleCorr_",geneOfSelection,"_",timePoint,"_",clustersToSelect,".RDS")
+
+exampleCorr1 <- readRDS("analysis/outputTabs/outAnalysis/exampleCorr_KMT2D_D11_DA.RDS")
+exampleCorr2 <- readRDS("analysis/outputTabs/outAnalysis/exampleCorr_KMT2D_D11_FPP-1.RDS")
+exampleCorr <- rbind(exampleCorr1, exampleCorr2)
+exampleCorr <- exampleCorr[!is.na(exampleCorr$meanExp),]
+exampleAnnot <- subset(dfAnnot, tp=="D11" & gene=="KMT2D")
+clusters=c("FPP-1","DA")
+exampleAnnot <- exampleAnnot[match(clusters, exampleAnnot$annot),]
+#exampleAnnot$annotNew <- paste0(exampleAnnot$tp,": ", exampleAnnot$annot, " (",exampleAnnot$gene," gene)")
+
+exampleCorr <- sapply(unique(exampleCorr$annot), function(z){
+  
+  tmp <- subset(exampleCorr, annot==z)
+  tmp$zscoMeanExp <- (tmp$meanExp-mean(tmp$meanExp))/sd(tmp$meanExp)
+  tmp$zscoCfrac <- (tmp$cfrac-mean(tmp$cfrac))/sd(tmp$cfrac)
+  
+  return(tmp)
+  
+}, simplify=F)
+
+exampleCorr <- do.call("rbind", exampleCorr)
+rownames(exampleCorr) <- NULL
+
+facet_names <- c(
+  'DA'="D11: DA (gene KMT2D)",
+  'FPP-1'="D11: FPP-1 (gene KMT2D)"
+)
+
+figure5d_1 <- ggplot(exampleCorr, aes(x=zscoCfrac, y=zscoMeanExp))+
+  geom_point(size=4, alpha=0.5)+
+  facet_grid(~annot, labeller=as_labeller(facet_names))+
+  theme_bw()+
+  xlab("Z-score Mean Expression")+
+  ylab("Z-score Cell-type fraction")+
+  theme(axis.title=element_text(size=13),
+        axis.text=element_text(size=12),
+        strip.text = element_text(size=12))
+
+tt <- ggplot_build(figure5d_1)
+
+figure5d_1 <- figure5d_1 + geom_text(data = exampleAnnot, aes(x = mean(tt$layout$panel_scales_x[[1]]$range$range),
+                                     y = 9,
+                                     label = paste0("italic(R) == ",signif(corrPearson,3))),
+            parse = TRUE, col="black",size=5)+
+  geom_text(data = exampleAnnot, aes(x = mean(tt$layout$panel_scales_x[[1]]$range$range),
+                                     y = 7,
+                                     label = paste0("italic(pAdj) == ",signif(pAdjusted,1))),
+            parse = TRUE, col="black",size=5)
+
+
+
+geneDistrPerTpPerAnnot <- function(dfAnnot, timePoint="D11", clusters=c("FPP-1","DA")){
+  
+  tmp_tp <- subset(dfAnnot, tp==timePoint)
+  tmp_tp$annotNum <- paste0(tmp_tp$tp,": ",tmp_tp$annot, " (n=", tmp_tp$nDonors, " donors)")
+  
+  annotPval=sapply(clusters, function(x){
+    
+    tmp_tpAnnot <- subset(tmp_tp, annot==x)
+    data.frame(tp=timePoint,
+               annot=x,
+               annotNum=unique(tmp_tpAnnot$annotNum),
+               minCorr=min(tmp_tpAnnot[tmp_tpAnnot$pAdjusted>0.05,]$corrPearson),
+               maxCorr=max(tmp_tpAnnot[tmp_tpAnnot$pAdjusted>0.05,]$corrPearson))
+    
+  }, simplify=F)
+  
+  annotPval <- do.call("rbind", annotPval)
+  rownames(annotPval) <- NULL
+
+  #tmp_tp
+  
+  figPerTP <- ggplot(tmp_tp[tmp_tp$annot %in% clusters,], aes(x=corrPearson))+
+    geom_histogram(color="black", fill="white")+
+    facet_wrap(~annotNum)+
+    geom_vline(data=annotPval,
+               mapping=aes(xintercept=minCorr), col="purple", linetype="dashed", size=0.75)+
+    geom_vline(data=annotPval,
+               mapping=aes(xintercept=maxCorr), col="purple", linetype="dashed", size=0.75)+
+    theme_bw()+
+    ylab("Number of genes")+
+    xlab("Pearson coefficient")+
+    #ggtitle("Z-score correlation: Gene expression ~ Cell-type fraction")+
+    theme(plot.title=element_text(hjust=0.5, face="bold"))+
+    geom_text(data=subset(annotPval, annot=="DA"),
+              aes(x=minCorr, y=750), col="purple", angle=90, label="pAdj<0.05", vjust=-1, size=5)+
+    geom_text(data=subset(annotPval, annot=="DA"),
+              aes(x=maxCorr, y=750), col="purple", angle=90, label="pAdj<0.05", vjust=2, size=5)+
+    theme(axis.title=element_text(size=13),
+          axis.text=element_text(size=12),
+          strip.text = element_text(size=12))
+  
+  return(figPerTP)
+
+}
+
+
+figure5d_2 <- geneDistrPerTpPerAnnot(dfAnnot, timePoint="D11", clusters=c("FPP-1","DA"))
+  
+figure5d <- ggarrange(figure5d_1, figure5d_2,
+                      ncol=1, nrow=2)
+
+pdf(file="figures/mainFigs/figure5D.pdf")
+plot(figure5d)
+dev.off()
+
+
+#############
+### fig5E ###
+#############
+
+dfAnnot <- readRDS("analysis/outputTabs/outAnalysis/allgenesPerTPAnnot.RDS")
+
+##psychiatric = schizophrenia
+psychiatric <- read_tsv("analysis/inputTabs/MONDO_0005090-associated-diseases.tsv")
+psychiatric <- unique(psychiatric$symbol)
+psychiatric <- psychiatric[!is.na(psychiatric)]
+psychiatric <- psychiatric[psychiatric %in% unique(dfAnnot$gene)]
+dfAnnot["Psychiatric Disorders (Schizophrenia)"] <- dfAnnot$gene %in% psychiatric
+
+##neurodegeneration
+neuroDeg <- read_tsv("analysis/inputTabs/Neurodegenerative_disorders_adult_onset.tsv")
+neuroDeg <- as.data.frame(neuroDeg)
+neuroDeg <- neuroDeg$`Gene Symbol`
+neuroDeg <- unique(neuroDeg)
+neuroDeg <- neuroDeg[!is.na(neuroDeg)]
+neuroDeg <- neuroDeg[neuroDeg %in% unique(dfAnnot$gene)]
+dfAnnot["Neurodegenerative Disorders (AdultOnset)"] <- dfAnnot$gene %in% neuroDeg
+
+
+##non-brain disorders: bleeding
+bleeding <- read_tsv("analysis/inputTabs/Bleeding_and_platelet_disorders.tsv")
+bleeding <- as.data.frame(bleeding)
+bleeding <- unique(bleeding$`Gene Symbol`)
+bleeding <- bleeding[!is.na(bleeding)]
+bleeding <- bleeding[bleeding %in% unique(dfAnnot$gene)]
+dfAnnot["Non Brain - Bleeding and Platelet Disorders"] <- dfAnnot$gene %in% bleeding
+
+
+##non-brain disorders: familialPulmonaryFibrosis
+familialPulmonaryFibrosis <- read_tsv("analysis/inputTabs/Familial_pulmonary_fibrosis.tsv")
+familialPulmonaryFibrosis <- as.data.frame(familialPulmonaryFibrosis)
+familialPulmonaryFibrosis <- unique(familialPulmonaryFibrosis$`Gene Symbol`)
+familialPulmonaryFibrosis <- familialPulmonaryFibrosis[!is.na(familialPulmonaryFibrosis)]
+familialPulmonaryFibrosis <- familialPulmonaryFibrosis[familialPulmonaryFibrosis %in% unique(dfAnnot$gene)]
+dfAnnot["Non Brain - Family Pulmonary Fibrosis"] <- dfAnnot$gene %in% familialPulmonaryFibrosis
+
+
+enrichTab <- function(dfAnnot, geneSet="DDD"){
+  
+  allTpEnrich <- sapply(unique(dfAnnot$tp), function(x){
+    
+    tmp <- subset(dfAnnot, tp==x)
+    
+    annotPerTp <- sapply(unique(tmp$annot), function(y){
+      
+      tmp2 <- subset(tmp, annot==y)
+      mtrixEnrich <- matrix(NA, nrow=2, ncol=2)
+      rownames(mtrixEnrich) <- c("signif","nonsignif")
+      colnames(mtrixEnrich) <- c("inGeneSet","notGeneSet")
+      matchCol <- match(geneSet, colnames(tmp2))
+      mtrixEnrich["signif","inGeneSet"] <- sum(tmp2$pAdjusted<0.05 & tmp2[,matchCol])
+      mtrixEnrich["signif","notGeneSet"] <- sum(tmp2$pAdjusted<0.05 & !tmp2[,matchCol])
+      mtrixEnrich["nonsignif","inGeneSet"] <- sum(!tmp2$pAdjusted<0.05 & tmp2[,matchCol])
+      mtrixEnrich["nonsignif","notGeneSet"] <- sum(!tmp2$pAdjusted<0.05 & !tmp2[,matchCol])
+      
+      tmp <- data.frame(tp=x,
+                        annot=y,
+                        pval=fisher.test(mtrixEnrich, alternative="greater")$p.value,
+                        nDon=unique(tmp2$nDonors),
+                        geneSetTested=geneSet)
+      
+      tmp
+      
+    }, simplify=F)
+    
+    annotPerTp <- do.call("rbind", annotPerTp)
+    rownames(annotPerTp) <- NULL
+    annotPerTp
+    
+  }, simplify=F)
+  
+  
+  allTpEnrich <- do.call("rbind", allTpEnrich)
+  rownames(allTpEnrich) <- NULL
+  
+  return(allTpEnrich)
+  
+}
+
+
+enrichRes <- rbind(enrichTab(dfAnnot, geneSet="DDD"),
+                   enrichTab(dfAnnot, geneSet="CosmicT1"),
+                   enrichTab(dfAnnot, geneSet="Psychiatric Disorders (Schizophrenia)"),
+                   enrichTab(dfAnnot, geneSet="Neurodegenerative Disorders (AdultOnset)"),
+                   enrichTab(dfAnnot, geneSet="Non Brain - Bleeding and Platelet Disorders"),
+                   enrichTab(dfAnnot, geneSet="Non Brain - Family Pulmonary Fibrosis"))
+
+
+enrichRes$pvalAdj <- p.adjust(enrichRes$pval,"BH")
+enrichRes$signif <- pvalConverter(enrichRes$pvalAdj)
+enrichRes$combination <- paste0(enrichRes$tp,"-", enrichRes$geneSetTested)
+enrichRes$combination <- factor(enrichRes$combination, levels=rev(paste0(rep(c("D11","D30","D52"),6),"-",
+                                                                         c(rep("DDD",3),
+                                                                           rep("CosmicT1",3),
+                                                                           rep("Psychiatric Disorders (Schizophrenia)",3),
+                                                                           rep("Neurodegenerative Disorders (AdultOnset)",3),
+                                                                           rep("Non Brain - Bleeding and Platelet Disorders",3),
+                                                                           rep("Non Brain - Family Pulmonary Fibrosis",3)))))
+enrichRes$combination2 <- paste0(enrichRes$tp,"-", enrichRes$annot)
+enrichRes <- addMissingNA(enrichRes)
+
+myPalette <- colorRampPalette(brewer.pal(3, "YlOrRd"))
+
+enrichRes$signif <- factor(enrichRes$signif, levels=c("***","**","*","ns"))
+fig5d <- ggplot(enrichRes, aes(y=combination, x=annot, fill=signif))+
+  geom_tile(colour = "black")+
+  theme_classic()+
+  geom_text(aes(x=annot,y=combination, label=nDon))+
+  theme(axis.text.x=element_text(angle=90, vjust=0.5, size=12, hjust=1),
+        axis.text.y=element_text(size=12),
+        legend.title=element_text(size=13, face="bold", hjust=0.5),
+        legend.text=element_text(size=13),
+        legend.position = "top")+
+  xlab("")+ylab("")+
+  scale_fill_manual(name="Gene set enrichment on\n(anti)-correlated genes",
+                    breaks = levels(enrichRes$signif),
+                    values=rev(myPalette(3)),
+                    na.value = 'grey90')
+
+
+pdf(file="figures/mainFigs/figure5E.pdf", width=10, height = 5)
+plot(fig5e)
+dev.off()
+
+
 

@@ -64,15 +64,17 @@ bsub -R'select[mem>5000] rusage[mem=5000]' -M5000 -J "cLineVarInfo[1-832]" -q lo
 Rscript 6-varCountPerLineAndCategoryBuilder.R
 Rscript 7-mutTab_logRegBuilder.R
 Rscript 8-enrichmentOntology.R
-Rscript 9-discordantPairsTabGenerator.R
-bsub -R'select[mem>10000] rusage[mem=10000]' -M10000 -J "discordRep[1-49]" -o log/discordRep.%J.%I.out -e log/discordRep.%J.%I.err ./10-masterMutdiff.sh outputTabs/iPSC/discordant/discordantPairsTab.txt 
-Rscript 11-generateRandom_v2.R
-Rscript 12-reproTab_cfracPerBatch.R
-Rscript 13-growthRate_outlierDef.R
-Rscript 14-QC_check.R
+bsub -R'select[mem>5000] rusage[mem=5000]' -M5000 -J "pseudoBulkBCOR[1-3]" -q long -o log/pseudoBulkBCOR.%J.%I.out -e log/pseudoBulkBCOR.%J.%I.err ./9a-pseudoBulkTransform.sh timepoint.txt
+Rscript 9b-bcorMutationsInFailed.R
+Rscript 9c-repliTimeScript.R
+bsub -R'select[mem>5000] rusage[mem=5000]' -M5000 -J "pseudoBulkLine[1-3]" -q long -o log/pseudoBulkLine.%J.%I.out -e log/pseudoBulkLine.%J.%I.err ./9d-calculateAvgPseudoExpPerLine.sh timepoint.txt
+
+Rscript 10-reproTab_cfracPerBatch.R
+Rscript 11-growthRate_outlierDef.R
+Rscript 12-QC_check.R
 
 ## Main figures 2,3
-cd  ${githubrepo}
+cd ${githubrepo}
 Rscript figure2.R
 Rscript figure3.R
 
@@ -82,29 +84,29 @@ Rscript suppFigure2.R
 Rscript suppFigure3.R
 
 
-cd  ${githubrepo}/analysis
-bsub -R'select[mem>60000] rusage[mem=60000]' -M60000 -J "DEperTimePoint[1-3]" -o log/DEperTimePoint.%J.%I.out -e log/DEperTimePoint.%J.%I.err ./15-masterOutcomeDE.sh timepoint.txt 
-bsub -R'select[mem>80000] rusage[mem=80000]' -M80000 -J "seuratList[1-3]" -o log/seuratList.%J.%I.out -e log/seuratList.%J.%I.err ./16-matrixGeneDonorGeneratorTP.sh timepoint.txt 
-Rscript 17-geneUniverseBuilder_scRNAseq.R
-bsub -R'select[mem>60000] rusage[mem=60000]' -M60000 -J "cosmicEnrich[1-7]" -o log/cosmicEnrich.%J.%I.out -e log/cosmicEnrich.%J.%I.err ./18-cosmicEnrichment.sh cosmicEnrichedTP.txt 
+cd ${githubrepo}/analysis
+bsub -R'select[mem>60000] rusage[mem=60000]' -M60000 -J "DEperTimePoint[1-3]" -o log/DEperTimePoint.%J.%I.out -e log/DEperTimePoint.%J.%I.err ./13-masterOutcomeDE.sh timepoint.txt 
+bsub -R'select[mem>80000] rusage[mem=80000]' -M80000 -J "seuratList[1-3]" -o log/seuratList.%J.%I.out -e log/seuratList.%J.%I.err ./14-matrixGeneDonorGeneratorTP.sh timepoint.txt 
+Rscript 15-geneUniverseBuilder_scRNAseq.R
+bsub -R'select[mem>60000] rusage[mem=60000]' -M60000 -J "cosmicEnrich[1-7]" -o log/cosmicEnrich.%J.%I.out -e log/cosmicEnrich.%J.%I.err ./16-cosmicEnrichment.sh cosmicEnrichedTP.txt 
 
 
 ## Main figure 4
-cd  ${githubrepo}
+cd ${githubrepo}
 Rscript figure4.R
 
 ## Supplementary figure 4
 Rscript suppFigure4.R
 
 cd ${githubrepo}/analysis
-bsub -R'select[mem>60000] rusage[mem=60000]' -M60000 -J "zscoCorrelationD11[1-26]" -o log/zscoCorrelationD11.%J.%I.out -e log/zscoCorrelationD11.%J.%I.err ./19-corr_expression.sh D11_indices_run.txt 
-bsub -R'select[mem>60000] rusage[mem=60000]' -M60000 -J "zscoCorrelationD30[1-29]" -o log/zscoCorrelationD30.%J.%I.out -e log/zscoCorrelationD30.%J.%I.err ./19-corr_expression.sh D30_indices_run.txt 
-bsub -R'select[mem>60000] rusage[mem=60000]' -M60000 -J "zscoCorrelationD52[1-30]" -o log/zscoCorrelationD52.%J.%I.out -e log/zscoCorrelationD52.%J.%I.err ./19-corr_expression.sh D52_indices_run.txt 
-Rscript 20-filter_KMT2D_D11.R
+bsub -R'select[mem>60000] rusage[mem=60000]' -M60000 -J "zscoCorrelationD11[1-26]" -o log/zscoCorrelationD11.%J.%I.out -e log/zscoCorrelationD11.%J.%I.err ./17-corr_expression.sh D11_indices_run.txt 
+bsub -R'select[mem>60000] rusage[mem=60000]' -M60000 -J "zscoCorrelationD30[1-29]" -o log/zscoCorrelationD30.%J.%I.out -e log/zscoCorrelationD30.%J.%I.err ./17-corr_expression.sh D30_indices_run.txt 
+bsub -R'select[mem>60000] rusage[mem=60000]' -M60000 -J "zscoCorrelationD52[1-30]" -o log/zscoCorrelationD52.%J.%I.out -e log/zscoCorrelationD52.%J.%I.err ./17-corr_expression.sh D52_indices_run.txt 
+bsub -R'select[mem>60000] rusage[mem=60000]' -M60000 -J "exampleCorr[1-4]" -o log/exampleCorr.%J.%I.out -e log/exampleCorr.%J.%I.err ./18-filterGeneTPAnnot.sh exampleCorrRuns.txt 
 
 ## Main figure 5
-cd  ${githubrepo}
-Rscript figure4.R
+cd ${githubrepo}
+Rscript figure5.R
 
 ## Supplementary figure 5
 Rscript suppFigure5.R

@@ -18,7 +18,6 @@ options(stringsAsFactors = FALSE)
 #### Exomes - SNV point mutations and dinucleotides #### 
 ########################################################
 
-#/lustre/scratch116/vr/user/pd3/hipsci/exome-point-mutations/releases
 path_to_directory <- "inputTabs/Rouhani_2021/"
 wes.SNVs.637 <- read.table(paste0(path_to_directory,"wes.SNVs.637bams.2019-09-02.txt.gz"),
                            comment.char = "#",

@@ -20,9 +20,9 @@ library(wesanderson)
 
 source("functionsToImport.R")
 
-##############
-### Fig 4A ###
-##############
+###############
+### SFig 4A ###
+###############
 
 pathTODE <- "analysis/outputTabs/DEsinglecell/"
 summResults <- paste0(pathTODE, list.files(path=pathTODE,
@@ -84,9 +84,9 @@ sfig4
 dev.off()
 
 
-##############
-### Fig 4B ###
-##############
+###############
+### SFig 4B ###
+###############
 
 
 library(GSEABase)
