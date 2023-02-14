@@ -1,3 +1,6 @@
+[![DOI](https://zenodo.org/badge/474143031.svg)](https://zenodo.org/badge/latestdoi/474143031)
+
+
 # Effects of somatic mutations on cellular phenotypes in iPSC models of neurodevelopment
 
 This repository contains the scripts to reproduce the analysis and the figures of this paper (DOI): https://doi.org/10.1101/2022.03.04.482992
